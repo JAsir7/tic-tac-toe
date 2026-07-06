@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tic-Tac-Toe — Split-Flap Scoreboard</title>
+<style>
+  :root {
+    --room-bg-1: #d8dbd6;
+    --room-bg-2: #c7cbc4;
+    --casing: #aca79c;
+    --casing-hi: #c2bdae;
+    --casing-lo: #8f8a7d;
+    --rivet: #7d7869;
+    --text-on-casing: #2a2722;
+    --text-muted-on-casing: #57534a;
+
+    --flap: #23272f;
+    --flap-lo: #1a1d23;
+    --flap-edge: #05070a;
+    --flap-ink: #ece8de;
+
+    --amber: #ffb020;
+    --amber-glow: rgba(255, 176, 32, 0.55);
+    --cyan: #4fd7d0;
+    --cyan-glow: rgba(79, 215, 208, 0.55);
+
+    --font-plate: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-ui: -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --room-bg-1: #0b0d10;
+      --room-bg-2: #15181c;
+      --casing: #1e2127;
+      --casing-hi: #2c3038;
+      --casing-lo: #121418;
+      --rivet: #3a3e46;
+      --text-on-casing: #d8d5c9;
+      --text-muted-on-casing: #948f80;
+    }
+  }
+  :root[data-theme="dark"] {
+    --room-bg-1: #0b0d10;
+    --room-bg-2: #15181c;
+    --casing: #1e2127;
+    --casing-hi: #2c3038;
+    --casing-lo: #121418;
+    --rivet: #3a3e46;
+    --text-on-casing: #d8d5c9;
+    --text-muted-on-casing: #948f80;
+  }
+  :root[data-theme="light"] {
+    --room-bg-1: #d8dbd6;
+    --room-bg-2: #c7cbc4;
+    --casing: #aca79c;
+    --casing-hi: #c2bdae;
+    --casing-lo: #8f8a7d;
+    --rivet: #7d7869;
+    --text-on-casing: #2a2722;
+    --text-muted-on-casing: #57534a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    background: radial-gradient(120% 140% at 50% 0%, var(--room-bg-2), var(--room-bg-1));
+    font-family: var(--font-ui);
+    color: var(--text-on-casing);
+  }
+
+  .room {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .cabinet {
+    position: relative;
+    width: min(94vw, 420px);
+    background: linear-gradient(180deg, var(--casing-hi), var(--casing) 40%, var(--casing-lo));
+    border-radius: 20px;
+    padding: 22px 20px 26px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.25) inset,
+      0 -8px 18px rgba(0, 0, 0, 0.25) inset,
+      0 24px 48px rgba(0, 0, 0, 0.35);
+  }
+
+  .rivet {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--casing-hi), var(--rivet) 70%);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  .rivet.tl { top: 10px; left: 10px; }
+  .rivet.tr { top: 10px; right: 10px; }
+  .rivet.bl { bottom: 10px; left: 10px; }
+  .rivet.br { bottom: 10px; right: 10px; }
+
+  .plate {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .wordmark {
+    margin: 0;
+    font-family: var(--font-plate);
+    font-weight: 800;
+    font-stretch: condensed;
+    font-size: clamp(20px, 6vw, 26px);
+    letter-spacing: 0.14em;
+    color: var(--text-on-casing);
+    text-wrap: balance;
+  }
+
+  .status-row { margin-top: 8px; }
+
+  .ticker {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    margin: 0;
+    padding: 6px 12px;
+    border-radius: 4px;
+    background: var(--flap-lo);
+    color: var(--amber);
+    font-family: var(--font-mono);
+    font-size: clamp(11px, 3.2vw, 13px);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  }
+  .ticker.o-turn { color: var(--cyan); }
+  .ticker.result { color: var(--flap-ink); }
+
+  .cursor {
+    animation: blink 1s steps(1) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cursor { animation: none; }
+  }
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 14px;
+    background: var(--flap-lo);
+    border-radius: 12px;
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  }
+
+  .flap-cell {
+    all: unset;
+    display: block;
+    aspect-ratio: 1;
+    cursor: pointer;
+    perspective: 500px;
+    border-radius: 6px;
+  }
+  .flap-cell:focus-visible {
+    outline: 3px solid var(--amber);
+    outline-offset: 3px;
+  }
+  .flap-cell[disabled] { cursor: default; }
+
+  .flap-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.5, 0.05, 0.15, 1);
+  }
+  .flap-cell.filled .flap-inner {
+    transform: rotateX(180deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flap-inner { transition: none; }
+  }
+
+  .flap-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #2c313a, #1c1f25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: clamp(28px, 8vw, 40px);
+  }
+  .flap-face::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    background: var(--flap-edge);
+    transform: translateY(-50%);
+  }
+  .flap-face.front { color: transparent; }
+  .flap-face.back {
+    transform: rotateX(180deg);
+    color: var(--flap-ink);
+  }
+  .flap-face.back[data-mark="X"] {
+    color: var(--amber);
+    text-shadow: 0 0 14px var(--amber-glow);
+  }
+  .flap-face.back[data-mark="O"] {
+    color: var(--cyan);
+    text-shadow: 0 0 14px var(--cyan-glow);
+  }
+
+  .flap-cell.win .flap-face {
+    animation: glow 1.1s ease-in-out infinite alternate;
+  }
+  .flap-cell.win .flap-face.back[data-mark="X"] { --glow: var(--amber-glow); }
+  .flap-cell.win .flap-face.back[data-mark="O"] { --glow: var(--cyan-glow); }
+  @keyframes glow {
+    from { box-shadow: 0 0 0 1px var(--glow, transparent), 0 0 10px var(--glow, transparent); }
+    to   { box-shadow: 0 0 0 2px var(--glow, transparent), 0 0 22px var(--glow, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flap-cell.win .flap-face { animation: none; box-shadow: 0 0 0 2px var(--glow, transparent), 0 0 16px var(--glow, transparent); }
+  }
+
+  .console {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .scores {
+    display: flex;
+    gap: 8px;
+  }
+  .score-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: var(--flap-lo);
+    border-radius: 5px;
+    padding: 5px 9px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+    min-width: 40px;
+  }
+  .score-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--text-muted-on-casing);
+  }
+  .score-chip[data-mark="x"] .score-label { color: var(--amber); }
+  .score-chip[data-mark="o"] .score-label { color: var(--cyan); }
+  .score-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--flap-ink);
+  }
+
+  .reset-btn {
+    all: unset;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--text-on-casing);
+    background: linear-gradient(180deg, var(--casing-hi), var(--casing-lo));
+    padding: 10px 14px;
+    border-radius: 8px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 2px 0 var(--casing-lo),
+      0 4px 6px rgba(0, 0, 0, 0.3);
+  }
+  .reset-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 0 0 var(--casing-lo);
+  }
+  .reset-btn:focus-visible {
+    outline: 3px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-on-casing);
+    opacity: 0.6;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<main class="room">
+  <section class="cabinet" aria-label="Tic-tac-toe scoreboard">
+    <span class="rivet tl"></span><span class="rivet tr"></span>
+    <span class="rivet bl"></span><span class="rivet br"></span>
+
+    <header class="plate">
+      <h1 class="wordmark">TIC · TAC · TOE</h1>
+      <div class="status-row">
+        <p id="status" class="ticker" aria-live="polite">PLAYER X'S TURN<span class="cursor" aria-hidden="true">▌</span></p>
+      </div>
+    </header>
+
+    <div class="board" id="board" role="group" aria-label="Game board"></div>
+
+    <footer class="console">
+      <div class="scores" aria-label="Match score">
+        <div class="score-chip" data-mark="x">
+          <span class="score-label">X</span>
+          <span class="score-value" id="scoreX">0</span>
+        </div>
+        <div class="score-chip" data-mark="draw">
+          <span class="score-label">TIE</span>
+          <span class="score-value" id="scoreD">0</span>
+        </div>
+        <div class="score-chip" data-mark="o">
+          <span class="score-label">O</span>
+          <span class="score-value" id="scoreO">0</span>
+        </div>
+      </div>
+      <button id="resetBtn" class="reset-btn" type="button">NEW GAME</button>
+    </footer>
+  </section>
+  <p class="hint">Click a tile — or tab through and press enter.</p>
+</main>
+
+<script>
+  const WINS = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const resetBtn = document.getElementById('resetBtn');
+  const scoreXEl = document.getElementById('scoreX');
+  const scoreOEl = document.getElementById('scoreO');
+  const scoreDEl = document.getElementById('scoreD');
+
+  let cells = [];
+  let board = Array(9).fill(null);
+  let current = 'X';
+  let gameOver = false;
+  const scores = { X: 0, O: 0, D: 0 };
+
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    cells = [];
+    for (let i = 0; i < 9; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'flap-cell';
+      btn.type = 'button';
+      btn.setAttribute('aria-label', `Row ${Math.floor(i / 3) + 1}, column ${(i % 3) + 1}, empty`);
+      btn.innerHTML = `
+        <span class="flap-inner">
+          <span class="flap-face front"></span>
+          <span class="flap-face back"></span>
+        </span>`;
+      btn.addEventListener('click', () => handleMove(i));
+      boardEl.appendChild(btn);
+      cells.push(btn);
+    }
+  }
+
+  function handleMove(i) {
+    if (gameOver || board[i]) return;
+    board[i] = current;
+
+    const cell = cells[i];
+    const back = cell.querySelector('.flap-face.back');
+    back.textContent = current;
+    back.dataset.mark = current;
+    cell.classList.add('filled');
+    cell.disabled = true;
+    cell.setAttribute('aria-label', `Row ${Math.floor(i / 3) + 1}, column ${(i % 3) + 1}, ${current}`);
+
+    const win = findWin();
+    if (win) {
+      gameOver = true;
+      win.forEach(idx => cells[idx].classList.add('win'));
+      scores[current]++;
+      updateScores();
+      setStatus(`${current} WINS THE ROUND`, 'result');
+      lockBoard();
+    } else if (board.every(Boolean)) {
+      gameOver = true;
+      scores.D++;
+      updateScores();
+      setStatus('DRAW — NO WINNER', 'result');
+    } else {
+      current = current === 'X' ? 'O' : 'X';
+      setStatus(`PLAYER ${current}'S TURN`, current === 'X' ? 'x-turn' : 'o-turn');
+    }
+  }
+
+  function findWin() {
+    return WINS.find(([a, b, c]) => board[a] && board[a] === board[b] && board[a] === board[c]);
+  }
+
+  function lockBoard() {
+    cells.forEach(c => { c.disabled = true; });
+  }
+
+  function setStatus(text, mode) {
+    statusEl.classList.remove('o-turn', 'result');
+    const cursor = mode === 'result' ? '' : '<span class="cursor" aria-hidden="true">▌</span>';
+    statusEl.innerHTML = text + cursor;
+    if (mode === 'o-turn') statusEl.classList.add('o-turn');
+    if (mode === 'result') statusEl.classList.add('result');
+  }
+
+  function updateScores() {
+    scoreXEl.textContent = scores.X;
+    scoreOEl.textContent = scores.O;
+    scoreDEl.textContent = scores.D;
+  }
+
+  function newGame() {
+    board = Array(9).fill(null);
+    current = 'X';
+    gameOver = false;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    cells.forEach((cell, i) => {
+      cell.classList.remove('win');
+      cell.disabled = false;
+      const doReset = () => {
+        cell.classList.remove('filled');
+        cell.setAttribute('aria-label', `Row ${Math.floor(i / 3) + 1}, column ${(i % 3) + 1}, empty`);
+      };
+      if (reduceMotion) doReset();
+      else setTimeout(doReset, i * 45);
+    });
+    setStatus("PLAYER X'S TURN", 'x-turn');
+  }
+
+  resetBtn.addEventListener('click', newGame);
+
+  buildBoard();
+  updateScores();
+</script>
+</body>
+</html>
